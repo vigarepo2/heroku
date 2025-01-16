@@ -147,6 +147,14 @@ HTML_TEMPLATE = '''
             background: #1c3aa3;
         }
 
+        .btn-secondary {
+            background: #6b7280;
+        }
+
+        .btn-secondary:hover {
+            background: #4b5563;
+        }
+
         .results {
             margin-top: 1.5rem;
         }
@@ -186,6 +194,11 @@ HTML_TEMPLATE = '''
             animation: spin 1s linear infinite;
         }
 
+        .settings-form {
+            display: none;
+            margin-top: 1.5rem;
+        }
+
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
@@ -214,8 +227,38 @@ HTML_TEMPLATE = '''
                 <label for="ccs">Credit Cards (max 50)</label>
                 <textarea id="ccs" placeholder="Enter cards (one per line)&#10;Format: XXXX|MM|YY|CVV" required></textarea>
             </div>
-            <button type="button" class="btn" onclick="submitForm()">Start Checker</button>
+            <div class="input-group">
+                <button type="button" class="btn" onclick="submitForm()">Start Checker</button>
+                <button type="button" class="btn btn-secondary" onclick="toggleSettings()">Settings</button>
+            </div>
         </form>
+        <div class="settings-form" id="settingsForm">
+            <h2>Settings</h2>
+            <form id="settingsForm" onsubmit="saveSettings(event)">
+                <div class="input-group">
+                    <label for="api_key">Heroku API Key</label>
+                    <input type="text" id="api_key" name="api_key" placeholder="Enter your Heroku API key" required>
+                </div>
+                <div class="input-group">
+                    <label for="proxy">Proxy (Optional - Format: host:port:user:pass)</label>
+                    <input type="text" id="proxy" name="proxy" placeholder="Enter proxy (e.g., host:port:user:pass)">
+                </div>
+                <div class="input-group">
+                    <label for="address">Custom Address (Optional)</label>
+                    <input type="text" id="address" name="address" placeholder="Enter custom address">
+                </div>
+                <div class="input-group">
+                    <label for="country">Country (Optional)</label>
+                    <select id="country" name="country">
+                        <option value="">Select Country</option>
+                        {% for country in countries %}
+                        <option value="{{ country }}">{{ country }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <button type="submit" class="btn">Save Settings</button>
+            </form>
+        </div>
         <div class="loader" id="loader"></div>
         <div class="results" id="results"></div>
     </div>
@@ -296,139 +339,33 @@ HTML_TEMPLATE = '''
                 await checkNextCC();
             }
         }
+
+        function toggleSettings() {
+            const settingsForm = document.getElementById('settingsForm');
+            settingsForm.style.display = settingsForm.style.display === 'none' ? 'block' : 'none';
+        }
+
+        async function saveSettings(event) {
+            event.preventDefault();
+            const api_key = document.getElementById('api_key').value.trim();
+            const proxy = document.getElementById('proxy').value.trim();
+            const address = document.getElementById('address').value.trim();
+            const country = document.getElementById('country').value.trim();
+
+            const response = await fetch('/save_settings', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ api_key, proxy, address, country })
+            });
+
+            if (response.ok) {
+                alert('Settings saved successfully!');
+                toggleSettings();
+            } else {
+                alert('Failed to save settings.');
+            }
+        }
     </script>
-</body>
-</html>
-'''
-
-SETTINGS_TEMPLATE = '''
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Settings - Heroku CC Checker</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: 'Inter', sans-serif;
-        }
-
-        body {
-            background: #f9fafb;
-            color: #111827;
-            line-height: 1.6;
-            padding: 20px;
-        }
-
-        .container {
-            max-width: 800px;
-            margin: 0 auto;
-            background: white;
-            padding: 1.5rem;
-            border-radius: 12px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        }
-
-        h1 {
-            color: #1e40af;
-            font-size: 1.75rem;
-            margin-bottom: 1.5rem;
-            text-align: center;
-        }
-
-        .input-group {
-            margin-bottom: 1.25rem;
-        }
-
-        label {
-            display: block;
-            margin-bottom: 0.5rem;
-            color: #374151;
-            font-weight: 500;
-        }
-
-        input[type="text"], textarea, select {
-            width: 100%;
-            padding: 0.75rem;
-            border: 2px solid #e5e7eb;
-            border-radius: 8px;
-            font-size: 0.9rem;
-            transition: border-color 0.3s ease;
-        }
-
-        input[type="text"]:focus, textarea:focus, select:focus {
-            outline: none;
-            border-color: #1e40af;
-        }
-
-        textarea {
-            min-height: 120px;
-            resize: vertical;
-        }
-
-        .btn {
-            background: #1e40af;
-            color: white;
-            padding: 0.75rem 1.5rem;
-            border: none;
-            border-radius: 8px;
-            font-size: 1rem;
-            font-weight: 500;
-            cursor: pointer;
-            width: 100%;
-            transition: background 0.3s ease;
-        }
-
-        .btn:hover {
-            background: #1c3aa3;
-        }
-
-        @media (max-width: 600px) {
-            .container {
-                padding: 1rem;
-            }
-
-            h1 {
-                font-size: 1.5rem;
-            }
-
-            .btn {
-                padding: 0.6rem 1.2rem;
-            }
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1>Settings</h1>
-        <form id="settingsForm" action="/save_settings" method="POST">
-            <div class="input-group">
-                <label for="api_key">Heroku API Key</label>
-                <input type="text" id="api_key" name="api_key" placeholder="Enter your Heroku API key" required>
-            </div>
-            <div class="input-group">
-                <label for="proxy">Proxy (Optional - Format: host:port:user:pass)</label>
-                <input type="text" id="proxy" name="proxy" placeholder="Enter proxy (e.g., host:port:user:pass)">
-            </div>
-            <div class="input-group">
-                <label for="address">Custom Address (Optional)</label>
-                <input type="text" id="address" name="address" placeholder="Enter custom address">
-            </div>
-            <div class="input-group">
-                <label for="country">Country (Optional)</label>
-                <select id="country" name="country">
-                    <option value="">Select Country</option>
-                    {% for country in countries %}
-                    <option value="{{ country }}">{{ country }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <button type="submit" class="btn">Save Settings</button>
-        </form>
-    </div>
 </body>
 </html>
 '''
@@ -555,26 +492,22 @@ async def heroku(cc, api_key, proxy=None, address=None, country=None):
 
 @app.get("/", response_class=HTMLResponse)
 def index(request: Request):
-    return HTMLResponse(content=HTML_TEMPLATE)
-
-@app.get("/settings", response_class=HTMLResponse)
-def settings(request: Request):
-    return templates.TemplateResponse("settings.html", {"request": request, "countries": COUNTRIES})
+    return templates.TemplateResponse("index.html", {"request": request, "countries": COUNTRIES})
 
 @app.post("/save_settings")
 async def save_settings(request: Request, response: Response):
-    form_data = await request.form()
-    api_key = form_data.get("api_key")
-    proxy = form_data.get("proxy")
-    address = form_data.get("address")
-    country = form_data.get("country")
+    data = await request.json()
+    api_key = data.get("api_key")
+    proxy = data.get("proxy")
+    address = data.get("address")
+    country = data.get("country")
 
     response.set_cookie(key="api_key", value=api_key)
     response.set_cookie(key="proxy", value=proxy)
     response.set_cookie(key="address", value=address)
     response.set_cookie(key="country", value=country)
 
-    return RedirectResponse(url="/", status_code=303)
+    return {"status": "success", "message": "Settings saved successfully"}
 
 @app.post("/check_cc")
 async def check_cc(request: Request):
