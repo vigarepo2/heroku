@@ -492,7 +492,7 @@ async def heroku(cc, api_key, proxy=None, address=None, country=None):
 
 @app.get("/", response_class=HTMLResponse)
 def index(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request, "countries": COUNTRIES})
+    return HTMLResponse(content=HTML_TEMPLATE)
 
 @app.post("/save_settings")
 async def save_settings(request: Request, response: Response):
