@@ -61,20 +61,20 @@ HTML_TEMPLATE = '''
             max-width: 800px;
             margin: 0 auto;
             background: white;
-            padding: 2rem;
+            padding: 1.5rem;
             border-radius: 12px;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         }
 
         h1 {
             color: #1e40af;
-            font-size: 2rem;
+            font-size: 1.75rem;
             margin-bottom: 1.5rem;
             text-align: center;
         }
 
         .input-group {
-            margin-bottom: 1.5rem;
+            margin-bottom: 1.25rem;
         }
 
         label {
@@ -89,7 +89,7 @@ HTML_TEMPLATE = '''
             padding: 0.75rem;
             border: 2px solid #e5e7eb;
             border-radius: 8px;
-            font-size: 1rem;
+            font-size: 0.9rem;
             transition: border-color 0.3s ease;
         }
 
@@ -99,7 +99,7 @@ HTML_TEMPLATE = '''
         }
 
         textarea {
-            min-height: 150px;
+            min-height: 120px;
             resize: vertical;
         }
 
@@ -121,7 +121,7 @@ HTML_TEMPLATE = '''
         }
 
         .results {
-            margin-top: 2rem;
+            margin-top: 1.5rem;
         }
 
         .result-card {
@@ -139,7 +139,7 @@ HTML_TEMPLATE = '''
         .result-content {
             font-family: monospace;
             white-space: pre-wrap;
-            font-size: 0.9rem;
+            font-size: 0.85rem;
         }
 
         .loader {
@@ -365,7 +365,7 @@ async def heroku(cc, api_key, proxy=None):
 
         req2 = await make_request("https://api.stripe.com/v1/payment_methods", headers=headers2, data=data, proxy=proxy)
         if not req2 or "pm_" not in req2:
-            return {"status": "error", "message": "Invalid Card"}
+            return {"status": "error", "message": "Incorrect card number"}
 
         json_sec = json.loads(req2)
         pmid = json_sec["id"]
@@ -395,7 +395,7 @@ async def heroku(cc, api_key, proxy=None):
         elif "insufficient_funds" in req3:
             return {"status": "insufficient_funds", "message": "Card Live - Insufficient Funds"}
         elif "decline_code" in req3:
-            return {"status": "declined", "message": ljson["error"]["decline_code"]}
+            return {"status": "error", "message": "Incorrect card number"}
         elif "requires_action" in req3:
             return {"status": "3d_secure", "message": "3D Secure Required"}
         elif "error" in req3:
