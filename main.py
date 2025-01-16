@@ -301,6 +301,138 @@ HTML_TEMPLATE = '''
 </html>
 '''
 
+SETTINGS_TEMPLATE = '''
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Settings - Heroku CC Checker</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', sans-serif;
+        }
+
+        body {
+            background: #f9fafb;
+            color: #111827;
+            line-height: 1.6;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 1.5rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            color: #1e40af;
+            font-size: 1.75rem;
+            margin-bottom: 1.5rem;
+            text-align: center;
+        }
+
+        .input-group {
+            margin-bottom: 1.25rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #374151;
+            font-weight: 500;
+        }
+
+        input[type="text"], textarea, select {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            transition: border-color 0.3s ease;
+        }
+
+        input[type="text"]:focus, textarea:focus, select:focus {
+            outline: none;
+            border-color: #1e40af;
+        }
+
+        textarea {
+            min-height: 120px;
+            resize: vertical;
+        }
+
+        .btn {
+            background: #1e40af;
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            width: 100%;
+            transition: background 0.3s ease;
+        }
+
+        .btn:hover {
+            background: #1c3aa3;
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                padding: 1rem;
+            }
+
+            h1 {
+                font-size: 1.5rem;
+            }
+
+            .btn {
+                padding: 0.6rem 1.2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Settings</h1>
+        <form id="settingsForm" action="/save_settings" method="POST">
+            <div class="input-group">
+                <label for="api_key">Heroku API Key</label>
+                <input type="text" id="api_key" name="api_key" placeholder="Enter your Heroku API key" required>
+            </div>
+            <div class="input-group">
+                <label for="proxy">Proxy (Optional - Format: host:port:user:pass)</label>
+                <input type="text" id="proxy" name="proxy" placeholder="Enter proxy (e.g., host:port:user:pass)">
+            </div>
+            <div class="input-group">
+                <label for="address">Custom Address (Optional)</label>
+                <input type="text" id="address" name="address" placeholder="Enter custom address">
+            </div>
+            <div class="input-group">
+                <label for="country">Country (Optional)</label>
+                <select id="country" name="country">
+                    <option value="">Select Country</option>
+                    {% for country in countries %}
+                    <option value="{{ country }}">{{ country }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button type="submit" class="btn">Save Settings</button>
+        </form>
+    </div>
+</body>
+</html>
+'''
+
 async def parseX(data, start, end):
     try:
         star = data.index(start) + len(start)
@@ -425,19 +557,6 @@ async def heroku(cc, api_key, proxy=None, address=None, country=None):
 def index(request: Request):
     return HTMLResponse(content=HTML_TEMPLATE)
 
-@app.post("/check_cc")
-async def check_cc(request: Request):
-    data = await request.json()
-    cc = data.get('cc')
-    api_key = request.cookies.get("api_key")
-    proxy = request.cookies.get("proxy")
-    address = request.cookies.get("address")
-    country = request.cookies.get("country")
-
-    result = await heroku(cc, api_key, proxy, address, country)
-    result['timestamp'] = datetime.now().strftime('%H:%M:%S')
-    return result
-
 @app.get("/settings", response_class=HTMLResponse)
 def settings(request: Request):
     return templates.TemplateResponse("settings.html", {"request": request, "countries": COUNTRIES})
@@ -456,6 +575,26 @@ async def save_settings(request: Request, response: Response):
     response.set_cookie(key="country", value=country)
 
     return RedirectResponse(url="/", status_code=303)
+
+@app.post("/check_cc")
+async def check_cc(request: Request):
+    data = await request.json()
+    cc = data.get('cc')
+    api_key = request.cookies.get("api_key")
+    proxy = request.cookies.get("proxy")
+    address = request.cookies.get("address")
+    country = request.cookies.get("country")
+
+    result = await heroku(cc, api_key, proxy, address, country)
+    result['timestamp'] = datetime.now().strftime('%H:%M:%S')
+    return result
+
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    await websocket.accept()
+    while True:
+        data = await websocket.receive_json()
+        await websocket.send_json({"status": "Message received", "data": data})
 
 if __name__ == '__main__':
     import uvicorn
