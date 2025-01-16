@@ -5,7 +5,7 @@ import asyncio
 import json
 import httpx
 from datetime import datetime
-from fastapi import FastAPI, WebSocket, Request, Response
+from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -138,6 +138,12 @@ HTML_TEMPLATE = '''
             padding: 1.5rem;
             border-radius: 0.5rem;
             margin: 1rem 0;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
         }
 
         .result-card {
@@ -146,6 +152,7 @@ HTML_TEMPLATE = '''
             border-radius: 0.5rem;
             margin-bottom: 1rem;
             border-left: 4px solid var(--primary-color);
+            animation: slideIn 0.3s ease;
         }
 
         .result-card.success {
@@ -154,6 +161,11 @@ HTML_TEMPLATE = '''
 
         .result-card.error {
             border-left-color: var(--error-color);
+        }
+
+        @keyframes slideIn {
+            from { transform: translateX(-10px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
         }
 
         .loader {
@@ -223,19 +235,23 @@ HTML_TEMPLATE = '''
                 </div>
                 <div class="input-group">
                     <label>Street Address</label>
-                    <input type="text" id="line1" value="245 W 5th Ave">
+                    <input type="text" id="line1" placeholder="Enter street address">
                 </div>
                 <div class="input-group">
                     <label>City</label>
-                    <input type="text" id="city" value="Anchorage">
+                    <input type="text" id="city" placeholder="Enter city">
                 </div>
                 <div class="input-group">
                     <label>State</label>
-                    <input type="text" id="state" value="AK">
+                    <input type="text" id="state" placeholder="Enter state">
                 </div>
                 <div class="input-group">
                     <label>ZIP Code</label>
-                    <input type="text" id="postal_code" value="99501">
+                    <input type="text" id="postal_code" placeholder="Enter ZIP code">
+                </div>
+                <div class="input-group">
+                    <label>Country</label>
+                    <input type="text" id="country" placeholder="Enter country">
                 </div>
             </div>
             <button class="btn" onclick="saveSettings()">Save Settings</button>
@@ -274,7 +290,8 @@ HTML_TEMPLATE = '''
                 line1: document.getElementById('line1').value.trim(),
                 city: document.getElementById('city').value.trim(),
                 state: document.getElementById('state').value.trim(),
-                postal_code: document.getElementById('postal_code').value.trim()
+                postal_code: document.getElementById('postal_code').value.trim(),
+                country: document.getElementById('country').value.trim()
             };
 
             if (!settings.api_key) {
@@ -388,7 +405,7 @@ async def make_request(url, method="POST", params=None, headers=None, data=None,
             print(f"Request error: {e}")
             return None
 
-async def heroku(cc, api_key, proxy=None, first_name=None, last_name=None, line1=None, city=None, state=None, postal_code=None):
+async def heroku(cc, api_key, proxy=None, first_name=None, last_name=None, line1=None, city=None, state=None, postal_code=None, country=None):
     try:
         cc_data = cc.split("|")
         if len(cc_data) != 4:
@@ -421,12 +438,12 @@ async def heroku(cc, api_key, proxy=None, first_name=None, last_name=None, line1
             "origin": "https://js.stripe.com",
         }
 
-        name = f"{first_name} {last_name}" if first_name and last_name else "Ahmed Afnan"
+        name = f"{first_name} {last_name}" if first_name and last_name else "Vikram Singh"
         data = {
             "type": "card",
             "billing_details[name]": name,
             "billing_details[address][city]": city or "Anchorage",
-            "billing_details[address][country]": "US",
+            "billing_details[address][country]": country or "US",
             "billing_details[address][line1]": line1 or "245 W 5th Ave",
             "billing_details[address][postal_code]": postal_code or "99501",
             "billing_details[address][state]": state or "AK",
@@ -510,7 +527,8 @@ async def check_cc(request: Request):
             settings.get('line1'),
             settings.get('city'),
             settings.get('state'),
-            settings.get('postal_code')
+            settings.get('postal_code'),
+            settings.get('country')
         )
         result['timestamp'] = datetime.now().strftime('%H:%M:%S')
         return result
