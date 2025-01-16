@@ -5,7 +5,7 @@ import asyncio
 import json
 import httpx
 from datetime import datetime
-from fastapi import FastAPI, WebSocket, Request, Response
+from fastapi import FastAPI, WebSocket, Request, Response, Cookie
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.templating import Jinja2Templates
@@ -229,7 +229,7 @@ HTML_TEMPLATE = '''
             </div>
             <div class="input-group">
                 <button type="button" class="btn" onclick="submitForm()">Start Checker</button>
-                <button type="button" class="btn btn-secondary" onclick="toggleSettings()">Settings</button>
+                <button type="button" class="btn btn-secondary" onclick="toggleSettings()" style="margin-top: 10px;">Settings</button>
             </div>
         </form>
         <div class="settings-form" id="settingsForm">
@@ -246,6 +246,18 @@ HTML_TEMPLATE = '''
                 <div class="input-group">
                     <label for="address">Custom Address (Optional)</label>
                     <input type="text" id="address" name="address" placeholder="Enter custom address">
+                </div>
+                <div class="input-group">
+                    <label for="line1">Address Line 1 (Optional)</label>
+                    <input type="text" id="line1" name="line1" placeholder="Enter address line 1">
+                </div>
+                <div class="input-group">
+                    <label for="postal_code">Postal Code (Optional)</label>
+                    <input type="text" id="postal_code" name="postal_code" placeholder="Enter postal code">
+                </div>
+                <div class="input-group">
+                    <label for="state">State (Optional)</label>
+                    <input type="text" id="state" name="state" placeholder="Enter state">
                 </div>
                 <div class="input-group">
                     <label for="country">Country (Optional)</label>
@@ -350,12 +362,15 @@ HTML_TEMPLATE = '''
             const api_key = document.getElementById('api_key').value.trim();
             const proxy = document.getElementById('proxy').value.trim();
             const address = document.getElementById('address').value.trim();
+            const line1 = document.getElementById('line1').value.trim();
+            const postal_code = document.getElementById('postal_code').value.trim();
+            const state = document.getElementById('state').value.trim();
             const country = document.getElementById('country').value.trim();
 
             const response = await fetch('/save_settings', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ api_key, proxy, address, country })
+                body: JSON.stringify({ api_key, proxy, address, line1, postal_code, state, country })
             });
 
             if (response.ok) {
@@ -399,7 +414,7 @@ async def make_request(url, method="POST", params=None, headers=None, data=None,
             print(f"Request error: {e}")
             return None
 
-async def heroku(cc, api_key, proxy=None, address=None, country=None):
+async def heroku(cc, api_key, proxy=None, address=None, line1=None, postal_code=None, state=None, country=None):
     try:
         cc_data = cc.split("|")
         if len(cc_data) != 4:
@@ -437,6 +452,9 @@ async def heroku(cc, api_key, proxy=None, address=None, country=None):
             "billing_details[name]": "John Doe",
             "billing_details[address][city]": address or "City",
             "billing_details[address][country]": country or "US",
+            "billing_details[address][line1]": line1 or "245 W 5th Ave",
+            "billing_details[address][postal_code]": postal_code or "99501",
+            "billing_details[address][state]": state or "AK",
             "card[number]": cc,
             "card[cvc]": cvv,
             "card[exp_month]": mon,
@@ -492,7 +510,7 @@ async def heroku(cc, api_key, proxy=None, address=None, country=None):
 
 @app.get("/", response_class=HTMLResponse)
 def index(request: Request):
-    return HTMLResponse(content=HTML_TEMPLATE)
+    return templates.TemplateResponse("index.html", {"request": request, "countries": COUNTRIES})
 
 @app.post("/save_settings")
 async def save_settings(request: Request, response: Response):
@@ -500,11 +518,17 @@ async def save_settings(request: Request, response: Response):
     api_key = data.get("api_key")
     proxy = data.get("proxy")
     address = data.get("address")
+    line1 = data.get("line1")
+    postal_code = data.get("postal_code")
+    state = data.get("state")
     country = data.get("country")
 
     response.set_cookie(key="api_key", value=api_key)
     response.set_cookie(key="proxy", value=proxy)
     response.set_cookie(key="address", value=address)
+    response.set_cookie(key="line1", value=line1)
+    response.set_cookie(key="postal_code", value=postal_code)
+    response.set_cookie(key="state", value=state)
     response.set_cookie(key="country", value=country)
 
     return {"status": "success", "message": "Settings saved successfully"}
@@ -516,9 +540,12 @@ async def check_cc(request: Request):
     api_key = request.cookies.get("api_key")
     proxy = request.cookies.get("proxy")
     address = request.cookies.get("address")
+    line1 = request.cookies.get("line1")
+    postal_code = request.cookies.get("postal_code")
+    state = request.cookies.get("state")
     country = request.cookies.get("country")
 
-    result = await heroku(cc, api_key, proxy, address, country)
+    result = await heroku(cc, api_key, proxy, address, line1, postal_code, state, country)
     result['timestamp'] = datetime.now().strftime('%H:%M:%S')
     return result
 
