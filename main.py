@@ -29,33 +29,35 @@ app.add_middleware(
 
 HTML_TEMPLATE = '''
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>CC Checker</title>
+    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <title>CC Checker Pro</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
         :root {
-            --primary-color: #2563eb;
-            --secondary-color: #1e40af;
+            --primary-color: #6d28d9;
+            --secondary-color: #4c1d95;
             --success-color: #10b981;
             --error-color: #ef4444;
             --background: #f8fafc;
             --card-bg: #ffffff;
             --text: #1f2937;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
         }
 
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
-            font-family: 'Inter', sans-serif;
+            font-family: 'Poppins', sans-serif;
         }
 
         body {
             background: var(--background);
             color: var(--text);
-            line-height: 1.5;
+            line-height: 1.6;
             padding: 2rem;
         }
 
@@ -65,14 +67,14 @@ HTML_TEMPLATE = '''
             background: var(--card-bg);
             padding: 2rem;
             border-radius: 1rem;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            box-shadow: var(--shadow);
         }
 
         h1 {
             text-align: center;
             color: var(--primary-color);
-            font-size: 1.875rem;
-            margin-bottom: 2rem;
+            font-size: 2rem;
+            margin-bottom: 1.5rem;
             font-weight: 600;
         }
 
@@ -93,12 +95,13 @@ HTML_TEMPLATE = '''
             border: 2px solid #e5e7eb;
             border-radius: 0.5rem;
             font-size: 0.875rem;
-            transition: border-color 0.15s ease;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
         }
 
         input:focus, textarea:focus {
             outline: none;
             border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(109, 40, 217, 0.1);
         }
 
         textarea {
@@ -117,11 +120,16 @@ HTML_TEMPLATE = '''
             width: 100%;
             font-size: 1rem;
             margin-bottom: 1rem;
-            transition: background-color 0.15s ease;
+            transition: background-color 0.2s ease, transform 0.2s ease;
         }
 
         .btn:hover {
             background: var(--secondary-color);
+            transform: translateY(-2px);
+        }
+
+        .btn:active {
+            transform: translateY(0);
         }
 
         .btn-secondary {
@@ -205,7 +213,7 @@ HTML_TEMPLATE = '''
 </head>
 <body>
     <div class="container">
-        <h1>CC Checker</h1>
+        <h1>CC Checker Pro</h1>
         
         <div class="input-group">
             <label>Credit Cards (Format: XXXX|MM|YY|CVV)</label>
@@ -378,6 +386,7 @@ HTML_TEMPLATE = '''
 </html>
 '''
 
+# Backend Logic
 async def parseX(data, start, end):
     try:
         star = data.index(start) + len(start)
