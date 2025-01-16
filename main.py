@@ -41,18 +41,18 @@ HTML_TEMPLATE = '''
 <head>
     <title>Heroku CC Checker</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
-            font-family: 'Poppins', sans-serif;
+            font-family: 'Inter', sans-serif;
         }
 
         body {
-            background: #f0f2f5;
-            color: #1a1a1a;
+            background: #f9fafb;
+            color: #111827;
             line-height: 1.6;
             padding: 20px;
         }
@@ -67,7 +67,7 @@ HTML_TEMPLATE = '''
         }
 
         h1 {
-            color: #1a73e8;
+            color: #1e40af;
             font-size: 2rem;
             margin-bottom: 1.5rem;
             text-align: center;
@@ -80,14 +80,14 @@ HTML_TEMPLATE = '''
         label {
             display: block;
             margin-bottom: 0.5rem;
-            color: #5f6368;
+            color: #374151;
             font-weight: 500;
         }
 
         input[type="text"], textarea {
             width: 100%;
             padding: 0.75rem;
-            border: 2px solid #e0e0e0;
+            border: 2px solid #e5e7eb;
             border-radius: 8px;
             font-size: 1rem;
             transition: border-color 0.3s ease;
@@ -95,7 +95,7 @@ HTML_TEMPLATE = '''
 
         input[type="text"]:focus, textarea:focus {
             outline: none;
-            border-color: #1a73e8;
+            border-color: #1e40af;
         }
 
         textarea {
@@ -104,7 +104,7 @@ HTML_TEMPLATE = '''
         }
 
         .btn {
-            background: #1a73e8;
+            background: #1e40af;
             color: white;
             padding: 0.75rem 1.5rem;
             border: none;
@@ -117,7 +117,7 @@ HTML_TEMPLATE = '''
         }
 
         .btn:hover {
-            background: #1557b0;
+            background: #1c3aa3;
         }
 
         .results {
@@ -125,24 +125,16 @@ HTML_TEMPLATE = '''
         }
 
         .result-card {
-            background: #f8f9fa;
+            background: #f9fafb;
             border-radius: 8px;
             padding: 1rem;
             margin-bottom: 1rem;
-            border-left: 4px solid #1a73e8;
+            border-left: 4px solid #1e40af;
         }
 
-        .status-success { border-left-color: #34a853; }
-        .status-error { border-left-color: #ea4335; }
-        .status-pending { border-left-color: #fbbc05; }
-
-        .result-header {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 0.5rem;
-            font-size: 0.9rem;
-            color: #5f6368;
-        }
+        .status-success { border-left-color: #10b981; }
+        .status-error { border-left-color: #ef4444; }
+        .status-pending { border-left-color: #f59e0b; }
 
         .result-content {
             font-family: monospace;
@@ -162,7 +154,7 @@ HTML_TEMPLATE = '''
             width: 30px;
             height: 30px;
             border: 3px solid #f3f3f3;
-            border-top: 3px solid #1a73e8;
+            border-top: 3px solid #1e40af;
             border-radius: 50%;
             animation: spin 1s linear infinite;
         }
@@ -200,8 +192,8 @@ HTML_TEMPLATE = '''
                 <textarea id="ccs" placeholder="Enter cards (one per line)&#10;Format: XXXX|MM|YY|CVV" required></textarea>
             </div>
             <div class="input-group">
-                <label for="proxy">Proxy (Optional)</label>
-                <input type="text" id="proxy" placeholder="Enter proxy (e.g., http://proxy:port)">
+                <label for="proxy">Proxy (Optional - Format: host:port:user:pass)</label>
+                <input type="text" id="proxy" placeholder="Enter proxy (e.g., host:port:user:pass)">
             </div>
             <button type="button" class="btn" onclick="submitForm()">Check Cards</button>
         </form>
@@ -303,7 +295,19 @@ async def parseX(data, start, end):
         return "None"
 
 async def make_request(url, method="POST", params=None, headers=None, data=None, json_data=None, proxy=None):
-    async with httpx.AsyncClient(proxies=proxy) as client:
+    proxies = None
+    if proxy:
+        proxy_parts = proxy.split(':')
+        if len(proxy_parts) == 4:
+            host, port, user, password = proxy_parts
+            proxies = {
+                "http://": f"http://{user}:{password}@{host}:{port}",
+                "https://": f"http://{user}:{password}@{host}:{port}",
+            }
+        else:
+            return None
+
+    async with httpx.AsyncClient(proxies=proxies) as client:
         try:
             response = await client.request(method, url, params=params, headers=headers, data=data, json=json_data)
             return response.text
