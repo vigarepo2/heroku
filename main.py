@@ -8,10 +8,9 @@ from datetime import datetime
 from fastapi import FastAPI, WebSocket, Request, Response
 from fastapi.responses import HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.templating import Jinja2Templates
 
 # Auto-install required modules
-required_modules = ['fastapi', 'httpx', 'uvicorn', 'jinja2']
+required_modules = ['fastapi', 'httpx', 'uvicorn']
 for module in required_modules:
     try:
         __import__(module.replace('-', '_'))
@@ -19,7 +18,6 @@ for module in required_modules:
         os.system(f"{sys.executable} -m pip install {module}")
 
 app = FastAPI()
-templates = Jinja2Templates(directory=".")
 
 app.add_middleware(
     CORSMiddleware,
@@ -29,118 +27,148 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Countries list
-COUNTRIES = [
-    "United States", "United Kingdom", "Canada", "Australia", "Germany",
-    "France", "Italy", "Spain", "Japan", "China", "India", "Brazil",
-    # Add more countries as needed
-]
-
 HTML_TEMPLATE = '''
 <!DOCTYPE html>
 <html>
 <head>
     <title>CC Checker</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
+        :root {
+            --primary-color: #2563eb;
+            --secondary-color: #1e40af;
+            --success-color: #10b981;
+            --error-color: #ef4444;
+            --background: #f8fafc;
+            --card-bg: #ffffff;
+            --text: #1f2937;
+        }
+
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
-            font-family: 'Arial', sans-serif;
+            font-family: 'Inter', sans-serif;
         }
 
         body {
-            background: #f0f2f5;
-            padding: 20px;
+            background: var(--background);
+            color: var(--text);
+            line-height: 1.5;
+            padding: 2rem;
         }
 
         .container {
             max-width: 800px;
             margin: 0 auto;
-            background: white;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            background: var(--card-bg);
+            padding: 2rem;
+            border-radius: 1rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
         }
 
         h1 {
             text-align: center;
-            color: #1a73e8;
-            margin-bottom: 20px;
+            color: var(--primary-color);
+            font-size: 1.875rem;
+            margin-bottom: 2rem;
+            font-weight: 600;
         }
 
         .input-group {
-            margin-bottom: 15px;
+            margin-bottom: 1.5rem;
         }
 
         label {
             display: block;
-            margin-bottom: 5px;
-            color: #333;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            color: var(--text);
         }
 
-        input, textarea, select {
+        input, textarea {
             width: 100%;
-            padding: 8px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            font-size: 14px;
+            padding: 0.75rem;
+            border: 2px solid #e5e7eb;
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+            transition: border-color 0.15s ease;
+        }
+
+        input:focus, textarea:focus {
+            outline: none;
+            border-color: var(--primary-color);
         }
 
         textarea {
-            min-height: 100px;
+            min-height: 120px;
             resize: vertical;
         }
 
-        button {
-            background: #1a73e8;
+        .btn {
+            background: var(--primary-color);
             color: white;
-            padding: 10px 20px;
+            padding: 0.75rem 1.5rem;
             border: none;
-            border-radius: 4px;
+            border-radius: 0.5rem;
+            font-weight: 500;
             cursor: pointer;
             width: 100%;
-            font-size: 16px;
+            font-size: 1rem;
+            margin-bottom: 1rem;
+            transition: background-color 0.15s ease;
         }
 
-        button:hover {
-            background: #1557b0;
+        .btn:hover {
+            background: var(--secondary-color);
         }
 
-        .results {
-            margin-top: 20px;
+        .btn-secondary {
+            background: #64748b;
+        }
+
+        .btn-secondary:hover {
+            background: #475569;
+        }
+
+        .settings-panel {
+            display: none;
+            background: #f1f5f9;
+            padding: 1.5rem;
+            border-radius: 0.5rem;
+            margin: 1rem 0;
         }
 
         .result-card {
-            padding: 10px;
-            margin-bottom: 10px;
-            border-radius: 4px;
-            border-left: 4px solid #1a73e8;
-            background: #f8f9fa;
+            background: #f8fafc;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin-bottom: 1rem;
+            border-left: 4px solid var(--primary-color);
         }
 
-        .settings-form {
-            display: none;
-            margin-top: 20px;
-            padding: 15px;
-            background: #f8f9fa;
-            border-radius: 4px;
+        .result-card.success {
+            border-left-color: var(--success-color);
+        }
+
+        .result-card.error {
+            border-left-color: var(--error-color);
         }
 
         .loader {
             display: none;
             text-align: center;
-            margin: 20px 0;
+            margin: 1rem 0;
         }
 
         .loader::after {
             content: '';
             display: inline-block;
-            width: 30px;
-            height: 30px;
+            width: 2rem;
+            height: 2rem;
             border: 3px solid #f3f3f3;
-            border-top: 3px solid #1a73e8;
+            border-top: 3px solid var(--primary-color);
             border-radius: 50%;
             animation: spin 1s linear infinite;
         }
@@ -149,55 +177,70 @@ HTML_TEMPLATE = '''
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+        }
+
+        @media (max-width: 640px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>CC Checker</h1>
-        <div class="input-group">
-            <button onclick="toggleSettings()">Settings</button>
-        </div>
         
-        <div class="settings-form" id="settingsForm">
-            <div class="input-group">
-                <label>API Key (Required)</label>
-                <input type="text" id="api_key" placeholder="Enter API key">
-            </div>
-            <div class="input-group">
-                <label>Proxy (Optional)</label>
-                <input type="text" id="proxy" placeholder="host:port:user:pass">
-            </div>
-            <div class="input-group">
-                <label>Country</label>
-                <select id="country">
-                    <option value="">Select Country</option>
-                    {% for country in countries %}
-                    <option value="{{ country }}">{{ country }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="input-group">
-                <label>Address</label>
-                <input type="text" id="address" placeholder="Enter address">
-            </div>
-            <div class="input-group">
-                <label>State</label>
-                <input type="text" id="state" placeholder="Enter state">
-            </div>
-            <div class="input-group">
-                <label>Postal Code</label>
-                <input type="text" id="postal_code" placeholder="Enter postal code">
-            </div>
-            <button onclick="saveSettings(event)">Save Settings</button>
-        </div>
-
         <div class="input-group">
             <label>Credit Cards (Format: XXXX|MM|YY|CVV)</label>
             <textarea id="ccs" placeholder="Enter cards (one per line)"></textarea>
         </div>
-        
-        <button onclick="submitForm()">Start Checking</button>
-        
+
+        <button class="btn" onclick="submitForm()">Start Checking</button>
+        <button class="btn btn-secondary" onclick="toggleSettings()">Settings</button>
+
+        <div class="settings-panel" id="settingsForm">
+            <div class="grid">
+                <div class="input-group">
+                    <label>API Key (Required)</label>
+                    <input type="text" id="api_key" placeholder="Enter API key">
+                </div>
+                <div class="input-group">
+                    <label>Proxy (Optional)</label>
+                    <input type="text" id="proxy" placeholder="host:port:user:pass">
+                </div>
+                <div class="input-group">
+                    <label>First Name</label>
+                    <input type="text" id="first_name" placeholder="Enter first name">
+                </div>
+                <div class="input-group">
+                    <label>Last Name</label>
+                    <input type="text" id="last_name" placeholder="Enter last name">
+                </div>
+                <div class="input-group">
+                    <label>Street Address</label>
+                    <input type="text" id="line1" value="245 W 5th Ave">
+                </div>
+                <div class="input-group">
+                    <label>City</label>
+                    <input type="text" id="city" value="Anchorage">
+                </div>
+                <div class="input-group">
+                    <label>State</label>
+                    <input type="text" id="state" value="AK">
+                </div>
+                <div class="input-group">
+                    <label>ZIP Code</label>
+                    <input type="text" id="postal_code" value="99501">
+                </div>
+            </div>
+            <button class="btn" onclick="saveSettings()">Save Settings</button>
+        </div>
+
         <div class="loader" id="loader"></div>
         <div class="results" id="results"></div>
     </div>
@@ -222,13 +265,14 @@ HTML_TEMPLATE = '''
             loadSettings();
         }
 
-        function saveSettings(event) {
-            event.preventDefault();
+        function saveSettings() {
             settings = {
                 api_key: document.getElementById('api_key').value.trim(),
                 proxy: document.getElementById('proxy').value.trim(),
-                country: document.getElementById('country').value,
-                address: document.getElementById('address').value.trim(),
+                first_name: document.getElementById('first_name').value.trim(),
+                last_name: document.getElementById('last_name').value.trim(),
+                line1: document.getElementById('line1').value.trim(),
+                city: document.getElementById('city').value.trim(),
                 state: document.getElementById('state').value.trim(),
                 postal_code: document.getElementById('postal_code').value.trim()
             };
@@ -253,8 +297,11 @@ HTML_TEMPLATE = '''
 
         function addResult(cc, result) {
             const resultsDiv = document.getElementById('results');
+            const statusClass = result.status === 'success' ? 'success' : 
+                              result.status === 'error' ? 'error' : '';
+            
             const resultHtml = `
-                <div class="result-card">
+                <div class="result-card ${statusClass}">
                     <strong>CC:</strong> ${cc}<br>
                     <strong>Status:</strong> ${result.status}<br>
                     <strong>Message:</strong> ${result.message}<br>
@@ -308,7 +355,6 @@ HTML_TEMPLATE = '''
             hideLoader();
         }
 
-        // Load settings on page load
         document.addEventListener('DOMContentLoaded', loadSettings);
     </script>
 </body>
@@ -342,7 +388,7 @@ async def make_request(url, method="POST", params=None, headers=None, data=None,
             print(f"Request error: {e}")
             return None
 
-async def heroku(cc, api_key, proxy=None, address=None, line1=None, postal_code=None, state=None, country=None):
+async def heroku(cc, api_key, proxy=None, first_name=None, last_name=None, line1=None, city=None, state=None, postal_code=None):
     try:
         cc_data = cc.split("|")
         if len(cc_data) != 4:
@@ -375,14 +421,15 @@ async def heroku(cc, api_key, proxy=None, address=None, line1=None, postal_code=
             "origin": "https://js.stripe.com",
         }
 
+        name = f"{first_name} {last_name}" if first_name and last_name else "Ahmed Afnan"
         data = {
             "type": "card",
-            "billing_details[name]": "John Doe",
-            "billing_details[address][city]": address or "City",
-            "billing_details[address][country]": country or "US",
-            "billing_details[address][line1]": line1 or "Street",
-            "billing_details[address][postal_code]": postal_code or "12345",
-            "billing_details[address][state]": state or "State",
+            "billing_details[name]": name,
+            "billing_details[address][city]": city or "Anchorage",
+            "billing_details[address][country]": "US",
+            "billing_details[address][line1]": line1 or "245 W 5th Ave",
+            "billing_details[address][postal_code]": postal_code or "99501",
+            "billing_details[address][state]": state or "AK",
             "card[number]": cc,
             "card[cvc]": cvv,
             "card[exp_month]": mon,
@@ -438,8 +485,7 @@ async def heroku(cc, api_key, proxy=None, address=None, line1=None, postal_code=
 
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
-    return HTMLResponse(content=HTML_TEMPLATE.replace("{% for country in countries %}", 
-                                                    "".join(f'<option value="{c}">{c}</option>' for c in COUNTRIES)))
+    return HTMLResponse(content=HTML_TEMPLATE)
 
 @app.post("/check_cc")
 async def check_cc(request: Request):
@@ -459,11 +505,12 @@ async def check_cc(request: Request):
             cc,
             settings.get('api_key'),
             settings.get('proxy'),
-            settings.get('address'),
+            settings.get('first_name'),
+            settings.get('last_name'),
             settings.get('line1'),
-            settings.get('postal_code'),
+            settings.get('city'),
             settings.get('state'),
-            settings.get('country')
+            settings.get('postal_code')
         )
         result['timestamp'] = datetime.now().strftime('%H:%M:%S')
         return result
@@ -474,24 +521,6 @@ async def check_cc(request: Request):
             "timestamp": datetime.now().strftime('%H:%M:%S')
         }
 
-@app.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket):
-    await websocket.accept()
-    try:
-        while True:
-            data = await websocket.receive_json()
-            await websocket.send_json({
-                "status": "received",
-                "timestamp": datetime.now().strftime('%H:%M:%S')
-            })
-    except Exception as e:
-        print(f"WebSocket error: {e}")
-    finally:
-        await websocket.close()
-
-def create_app():
-    return app
-
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run(app, host="0.0.0.0", port=8000, reload=True)
