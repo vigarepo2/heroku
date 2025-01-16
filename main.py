@@ -5,8 +5,8 @@ import asyncio
 import json
 import httpx
 from datetime import datetime
-from fastapi import FastAPI, WebSocket, Request
-from fastapi.responses import HTMLResponse
+from fastapi import FastAPI, WebSocket, Request, Response
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.templating import Jinja2Templates
 
@@ -34,6 +34,33 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# List of all countries (A to Z)
+COUNTRIES = [
+    "Afghanistan", "Albania", "Algeria", "Andorra", "Angola", "Antigua and Barbuda", "Argentina", "Armenia", 
+    "Australia", "Austria", "Azerbaijan", "Bahamas", "Bahrain", "Bangladesh", "Barbados", "Belarus", "Belgium", 
+    "Belize", "Benin", "Bhutan", "Bolivia", "Bosnia and Herzegovina", "Botswana", "Brazil", "Brunei", "Bulgaria", 
+    "Burkina Faso", "Burundi", "Côte d'Ivoire", "Cabo Verde", "Cambodia", "Cameroon", "Canada", "Central African Republic", 
+    "Chad", "Chile", "China", "Colombia", "Comoros", "Congo (Congo-Brazzaville)", "Costa Rica", "Croatia", "Cuba", 
+    "Cyprus", "Czechia (Czech Republic)", "Democratic Republic of the Congo", "Denmark", "Djibouti", "Dominica", 
+    "Dominican Republic", "Ecuador", "Egypt", "El Salvador", "Equatorial Guinea", "Eritrea", "Estonia", "Eswatini", 
+    "Ethiopia", "Fiji", "Finland", "France", "Gabon", "Gambia", "Georgia", "Germany", "Ghana", "Greece", "Grenada", 
+    "Guatemala", "Guinea", "Guinea-Bissau", "Guyana", "Haiti", "Honduras", "Hungary", "Iceland", "India", "Indonesia", 
+    "Iran", "Iraq", "Ireland", "Israel", "Italy", "Jamaica", "Japan", "Jordan", "Kazakhstan", "Kenya", "Kiribati", 
+    "Kuwait", "Kyrgyzstan", "Laos", "Latvia", "Lebanon", "Lesotho", "Liberia", "Libya", "Liechtenstein", "Lithuania", 
+    "Luxembourg", "Madagascar", "Malawi", "Malaysia", "Maldives", "Mali", "Malta", "Marshall Islands", "Mauritania", 
+    "Mauritius", "Mexico", "Micronesia", "Moldova", "Monaco", "Mongolia", "Montenegro", "Morocco", "Mozambique", 
+    "Myanmar (formerly Burma)", "Namibia", "Nauru", "Nepal", "Netherlands", "New Zealand", "Nicaragua", "Niger", 
+    "Nigeria", "North Korea", "North Macedonia", "Norway", "Oman", "Pakistan", "Palau", "Palestine State", "Panama", 
+    "Papua New Guinea", "Paraguay", "Peru", "Philippines", "Poland", "Portugal", "Qatar", "Romania", "Russia", 
+    "Rwanda", "Saint Kitts and Nevis", "Saint Lucia", "Saint Vincent and the Grenadines", "Samoa", "San Marino", 
+    "Sao Tome and Principe", "Saudi Arabia", "Senegal", "Serbia", "Seychelles", "Sierra Leone", "Singapore", 
+    "Slovakia", "Slovenia", "Solomon Islands", "Somalia", "South Africa", "South Korea", "South Sudan", "Spain", 
+    "Sri Lanka", "Sudan", "Suriname", "Sweden", "Switzerland", "Syria", "Tajikistan", "Tanzania", "Thailand", 
+    "Timor-Leste", "Togo", "Tonga", "Trinidad and Tobago", "Tunisia", "Turkey", "Turkmenistan", "Tuvalu", "Uganda", 
+    "Ukraine", "United Arab Emirates", "United Kingdom", "United States of America", "Uruguay", "Uzbekistan", 
+    "Vanuatu", "Venezuela", "Vietnam", "Yemen", "Zambia", "Zimbabwe"
+]
 
 HTML_TEMPLATE = '''
 <!DOCTYPE html>
@@ -84,7 +111,7 @@ HTML_TEMPLATE = '''
             font-weight: 500;
         }
 
-        input[type="text"], textarea {
+        input[type="text"], textarea, select {
             width: 100%;
             padding: 0.75rem;
             border: 2px solid #e5e7eb;
@@ -93,7 +120,7 @@ HTML_TEMPLATE = '''
             transition: border-color 0.3s ease;
         }
 
-        input[type="text"]:focus, textarea:focus {
+        input[type="text"]:focus, textarea:focus, select:focus {
             outline: none;
             border-color: #1e40af;
         }
@@ -184,18 +211,10 @@ HTML_TEMPLATE = '''
         <h1>Heroku CC Checker</h1>
         <form id="ccForm">
             <div class="input-group">
-                <label for="api_key">API Key</label>
-                <input type="text" id="api_key" placeholder="Enter your Heroku API key" required>
-            </div>
-            <div class="input-group">
                 <label for="ccs">Credit Cards (max 50)</label>
                 <textarea id="ccs" placeholder="Enter cards (one per line)&#10;Format: XXXX|MM|YY|CVV" required></textarea>
             </div>
-            <div class="input-group">
-                <label for="proxy">Proxy (Optional - Format: host:port:user:pass)</label>
-                <input type="text" id="proxy" placeholder="Enter proxy (e.g., host:port:user:pass)">
-            </div>
-            <button type="button" class="btn" onclick="submitForm()">Check Cards</button>
+            <button type="button" class="btn" onclick="submitForm()">Start Checker</button>
         </form>
         <div class="loader" id="loader"></div>
         <div class="results" id="results"></div>
@@ -221,9 +240,7 @@ HTML_TEMPLATE = '''
             const resultHtml = `
                 <div class="result-card ${statusClass}">
                     <div class="result-content">
-                        <strong>Card:</strong> ${cc}<br>
-                        <strong>Status:</strong> ${result.status}<br>
-                        <strong>Message:</strong> ${result.message}
+                        <strong>CC:</strong> ${cc} <strong>Response:</strong> ${result.message}
                     </div>
                 </div>
             `;
@@ -231,12 +248,10 @@ HTML_TEMPLATE = '''
         }
 
         async function submitForm() {
-            const api_key = document.getElementById('api_key').value.trim();
             const ccInput = document.getElementById('ccs').value.trim();
-            const proxy = document.getElementById('proxy').value.trim();
             
-            if (!api_key || !ccInput) {
-                alert('Please fill in all fields');
+            if (!ccInput) {
+                alert('Please enter credit cards');
                 return;
             }
 
@@ -250,11 +265,11 @@ HTML_TEMPLATE = '''
             document.getElementById('results').innerHTML = '';
             currentIndex = 0;
             showLoader();
-            await checkNextCC(api_key, proxy);
+            await checkNextCC();
             hideLoader();
         }
 
-        async function checkNextCC(api_key, proxy) {
+        async function checkNextCC() {
             if (currentIndex >= ccs.length) return;
 
             const cc = ccs[currentIndex];
@@ -262,7 +277,7 @@ HTML_TEMPLATE = '''
                 const response = await fetch('/check_cc', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ cc, api_key, proxy })
+                    body: JSON.stringify({ cc })
                 });
                 const result = await response.json();
                 addResult(cc, result);
@@ -270,7 +285,7 @@ HTML_TEMPLATE = '''
                 if (result.status === 'success') return;
                 
                 currentIndex++;
-                await checkNextCC(api_key, proxy);
+                await checkNextCC();
             } catch (error) {
                 addResult(cc, {
                     status: 'error',
@@ -278,7 +293,7 @@ HTML_TEMPLATE = '''
                     timestamp: new Date().toLocaleTimeString()
                 });
                 currentIndex++;
-                await checkNextCC(api_key, proxy);
+                await checkNextCC();
             }
         }
     </script>
@@ -315,7 +330,7 @@ async def make_request(url, method="POST", params=None, headers=None, data=None,
             print(f"Request error: {e}")
             return None
 
-async def heroku(cc, api_key, proxy=None):
+async def heroku(cc, api_key, proxy=None, address=None, country=None):
     try:
         cc_data = cc.split("|")
         if len(cc_data) != 4:
@@ -351,8 +366,8 @@ async def heroku(cc, api_key, proxy=None):
         data = {
             "type": "card",
             "billing_details[name]": "John Doe",
-            "billing_details[address][city]": "City",
-            "billing_details[address][country]": "US",
+            "billing_details[address][city]": address or "City",
+            "billing_details[address][country]": country or "US",
             "card[number]": cc,
             "card[cvc]": cvv,
             "card[exp_month]": mon,
@@ -365,7 +380,7 @@ async def heroku(cc, api_key, proxy=None):
 
         req2 = await make_request("https://api.stripe.com/v1/payment_methods", headers=headers2, data=data, proxy=proxy)
         if not req2 or "pm_" not in req2:
-            return {"status": "error", "message": "Incorrect card number"}
+            return {"status": "error", "message": "Incorrect_card_number"}
 
         json_sec = json.loads(req2)
         pmid = json_sec["id"]
@@ -391,11 +406,11 @@ async def heroku(cc, api_key, proxy=None):
 
         ljson = json.loads(req3)
         if '"status": "succeeded"' in req3:
-            return {"status": "success", "message": "Card Added Successfully"}
+            return {"status": "success", "message": "successful"}
         elif "insufficient_funds" in req3:
             return {"status": "insufficient_funds", "message": "Card Live - Insufficient Funds"}
         elif "decline_code" in req3:
-            return {"status": "error", "message": "Incorrect card number"}
+            return {"status": "declined", "message": "generic_decline"}
         elif "requires_action" in req3:
             return {"status": "3d_secure", "message": "3D Secure Required"}
         elif "error" in req3:
@@ -414,19 +429,33 @@ def index(request: Request):
 async def check_cc(request: Request):
     data = await request.json()
     cc = data.get('cc')
-    api_key = data.get('api_key')
-    proxy = data.get('proxy')
+    api_key = request.cookies.get("api_key")
+    proxy = request.cookies.get("proxy")
+    address = request.cookies.get("address")
+    country = request.cookies.get("country")
 
-    result = await heroku(cc, api_key, proxy)
+    result = await heroku(cc, api_key, proxy, address, country)
     result['timestamp'] = datetime.now().strftime('%H:%M:%S')
     return result
 
-@app.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket):
-    await websocket.accept()
-    while True:
-        data = await websocket.receive_json()
-        await websocket.send_json({"status": "Message received", "data": data})
+@app.get("/settings", response_class=HTMLResponse)
+def settings(request: Request):
+    return templates.TemplateResponse("settings.html", {"request": request, "countries": COUNTRIES})
+
+@app.post("/save_settings")
+async def save_settings(request: Request, response: Response):
+    form_data = await request.form()
+    api_key = form_data.get("api_key")
+    proxy = form_data.get("proxy")
+    address = form_data.get("address")
+    country = form_data.get("country")
+
+    response.set_cookie(key="api_key", value=api_key)
+    response.set_cookie(key="proxy", value=proxy)
+    response.set_cookie(key="address", value=address)
+    response.set_cookie(key="country", value=country)
+
+    return RedirectResponse(url="/", status_code=303)
 
 if __name__ == '__main__':
     import uvicorn
