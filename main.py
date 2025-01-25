@@ -4,10 +4,9 @@ import uuid
 import asyncio
 import json
 import httpx
-import base64
 from datetime import datetime
 from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 
 # Auto-install required modules
@@ -30,45 +29,29 @@ app.add_middleware(
 
 HTML_TEMPLATE = '''
 <!DOCTYPE html>
-<html lang="en" data-theme="light">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CC Checker Pro</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
-        /* Theme Variables */
-        :root[data-theme="light"] {
-            --primary-color: #6366f1;
-            --primary-hover: #4f46e5;
-            --success-color: #22c55e;
+        :root {
+            --primary-color: #6d28d9;
+            --secondary-color: #4c1d95;
+            --success-color: #10b981;
             --error-color: #ef4444;
-            --warning-color: #eab308;
             --background: #f8fafc;
             --card-bg: #ffffff;
-            --text: #1e293b;
-            --border: #e2e8f0;
-            --shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-        }
-
-        :root[data-theme="dark"] {
-            --primary-color: #818cf8;
-            --primary-hover: #6366f1;
-            --success-color: #34d399;
-            --error-color: #f87171;
-            --warning-color: #fcd34d;
-            --background: #1e293b;
-            --card-bg: #0f172a;
-            --text: #e2e8f0;
-            --border: #334155;
-            --shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+            --text: #1f2937;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
         }
 
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
-            font-family: 'Inter', sans-serif;
+            font-family: 'Poppins', sans-serif;
         }
 
         body {
@@ -76,161 +59,108 @@ HTML_TEMPLATE = '''
             color: var(--text);
             line-height: 1.6;
             padding: 2rem;
-            min-height: 100vh;
-            transition: all 0.3s ease;
         }
 
         .container {
-            max-width: 1200px;
+            max-width: 800px;
             margin: 0 auto;
             background: var(--card-bg);
             padding: 2rem;
             border-radius: 1rem;
             box-shadow: var(--shadow);
-            border: 1px solid var(--border);
         }
 
-        /* Header Section */
-        .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 2rem;
-        }
-
-        .theme-toggle {
-            background: none;
-            border: none;
-            cursor: pointer;
-            font-size: 1.5rem;
-            color: var(--text);
-        }
-
-        /* Stats Section */
-        .stats {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 1rem;
-            margin-bottom: 2rem;
-        }
-
-        .stat-card {
-            background: var(--card-bg);
-            padding: 1rem;
-            border-radius: 0.5rem;
-            border: 1px solid var(--border);
+        h1 {
             text-align: center;
-        }
-
-        .stat-value {
-            font-size: 1.5rem;
-            font-weight: 700;
             color: var(--primary-color);
-        }
-
-        .stat-label {
-            font-size: 0.875rem;
-            color: var(--text);
-            opacity: 0.8;
-        }
-
-        /* Input Section */
-        .input-section {
-            margin-bottom: 2rem;
+            font-size: 2rem;
+            margin-bottom: 1.5rem;
+            font-weight: 600;
         }
 
         .input-group {
-            margin-bottom: 1rem;
+            margin-bottom: 1.5rem;
         }
 
         label {
             display: block;
             margin-bottom: 0.5rem;
             font-weight: 500;
+            color: var(--text);
+        }
+
+        input, textarea {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid #e5e7eb;
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        input:focus, textarea:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(109, 40, 217, 0.1);
         }
 
         textarea {
-            width: 100%;
-            min-height: 150px;
-            padding: 1rem;
-            border: 1px solid var(--border);
-            border-radius: 0.5rem;
-            background: var(--background);
-            color: var(--text);
-            font-family: monospace;
+            min-height: 120px;
             resize: vertical;
         }
 
-        /* Buttons */
-        .btn-group {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 1rem;
-            margin-bottom: 2rem;
-        }
-
         .btn {
+            background: var(--primary-color);
+            color: white;
             padding: 0.75rem 1.5rem;
             border: none;
             border-radius: 0.5rem;
-            font-weight: 600;
+            font-weight: 500;
             cursor: pointer;
-            transition: all 0.2s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 0.5rem;
+            width: 100%;
+            font-size: 1rem;
+            margin-bottom: 1rem;
+            transition: background-color 0.2s ease, transform 0.2s ease;
         }
 
-        .btn-primary {
-            background: var(--primary-color);
-            color: white;
+        .btn:hover {
+            background: var(--secondary-color);
+            transform: translateY(-2px);
         }
 
-        .btn-primary:hover {
-            background: var(--primary-hover);
+        .btn:active {
+            transform: translateY(0);
         }
 
         .btn-secondary {
-            background: var(--text);
-            color: var(--card-bg);
+            background: #64748b;
         }
 
         .btn-secondary:hover {
-            opacity: 0.9;
+            background: #475569;
         }
 
-        /* Progress Bar */
-        .progress-container {
-            margin-bottom: 2rem;
+        .settings-panel {
             display: none;
+            background: #f1f5f9;
+            padding: 1.5rem;
+            border-radius: 0.5rem;
+            margin: 1rem 0;
+            animation: fadeIn 0.3s ease;
         }
 
-        .progress-bar {
-            height: 0.5rem;
-            background: var(--border);
-            border-radius: 1rem;
-            overflow: hidden;
-        }
-
-        .progress {
-            height: 100%;
-            background: var(--primary-color);
-            width: 0%;
-            transition: width 0.3s ease;
-        }
-
-        /* Results Section */
-        .results {
-            margin-top: 2rem;
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
         }
 
         .result-card {
-            background: var(--background);
+            background: #f8fafc;
             padding: 1rem;
             border-radius: 0.5rem;
             margin-bottom: 1rem;
             border-left: 4px solid var(--primary-color);
+            animation: slideIn 0.3s ease;
         }
 
         .result-card.success {
@@ -241,205 +171,109 @@ HTML_TEMPLATE = '''
             border-left-color: var(--error-color);
         }
 
-        /* Animations */
         @keyframes slideIn {
-            from {
-                opacity: 0;
-                transform: translateY(-10px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+            from { transform: translateX(-10px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
         }
 
-        .result-card {
-            animation: slideIn 0.3s ease;
+        .loader {
+            display: none;
+            text-align: center;
+            margin: 1rem 0;
         }
 
-        /* Responsive Design */
-        @media (max-width: 768px) {
-            .container {
-                padding: 1rem;
-            }
+        .loader::after {
+            content: '';
+            display: inline-block;
+            width: 2rem;
+            height: 2rem;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid var(--primary-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
 
-            .btn-group {
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+        }
+
+        @media (max-width: 640px) {
+            .grid {
                 grid-template-columns: 1fr;
             }
-
-            .stats {
-                grid-template-columns: repeat(2, 1fr);
-            }
-        }
-
-        /* Settings Modal */
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.5);
-            z-index: 1000;
-        }
-
-        .modal-content {
-            position: relative;
-            background: var(--card-bg);
-            margin: 2rem auto;
-            padding: 2rem;
-            max-width: 600px;
-            border-radius: 1rem;
-            animation: slideIn 0.3s ease;
-        }
-
-        .close {
-            position: absolute;
-            right: 1rem;
-            top: 1rem;
-            font-size: 1.5rem;
-            cursor: pointer;
-            color: var(--text);
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <!-- Header -->
-        <div class="header">
-            <h1>💳 CC Checker Pro</h1>
-            <button class="theme-toggle" onclick="toggleTheme()">🌓</button>
+        <h1>CC Checker Pro</h1>
+        
+        <div class="input-group">
+            <label>Credit Cards (Format: XXXX|MM|YY|CVV)</label>
+            <textarea id="ccs" placeholder="Enter cards (one per line)"></textarea>
         </div>
 
-        <!-- Stats -->
-        <div class="stats">
-            <div class="stat-card">
-                <div class="stat-value" id="totalCount">0</div>
-                <div class="stat-label">Total</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-value" id="liveCount">0</div>
-                <div class="stat-label">Live</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-value" id="deadCount">0</div>
-                <div class="stat-label">Dead</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-value" id="errorCount">0</div>
-                <div class="stat-label">Error</div>
-            </div>
-        </div>
+        <button class="btn" onclick="submitForm()">Start Checking</button>
+        <button class="btn btn-secondary" onclick="toggleSettings()">Settings</button>
 
-        <!-- Input Section -->
-        <div class="input-section">
-            <div class="input-group">
-                <label>Credit Cards (Format: XXXX|MM|YY|CVV)</label>
-                <textarea id="ccs" placeholder="Enter cards (one per line)"></textarea>
-            </div>
-        </div>
-
-        <!-- Buttons -->
-        <div class="btn-group">
-            <button class="btn btn-primary" onclick="startChecking()">
-                <span>Start Checking</span>
-            </button>
-            <button class="btn btn-secondary" onclick="openSettings()">
-                <span>Settings</span>
-            </button>
-            <button class="btn btn-secondary" onclick="clearResults()">
-                <span>Clear Results</span>
-            </button>
-            <button class="btn btn-secondary" onclick="exportResults()">
-                <span>Export Results</span>
-            </button>
-        </div>
-
-        <!-- Progress Bar -->
-        <div class="progress-container" id="progressContainer">
-            <div class="progress-bar">
-                <div class="progress" id="progress"></div>
-            </div>
-            <div style="text-align: center; margin-top: 0.5rem;">
-                <span id="progressText">0/0 Checked</span>
-            </div>
-        </div>
-
-        <!-- Results -->
-        <div class="results" id="results"></div>
-    </div>
-
-    <!-- Settings Modal -->
-    <div class="modal" id="settingsModal">
-        <div class="modal-content">
-            <span class="close" onclick="closeSettings()">&times;</span>
-            <h2>Settings</h2>
-            <div class="input-group">
-                <label>API Key (Required)</label>
-                <input type="text" id="api_key" value="HRKU-dbedf9a3-6946-4206-a197-be6cf5766a40">
-            </div>
-            <div class="input-group">
-                <label>Proxy (Optional)</label>
-                <input type="text" id="proxy" placeholder="host:port:user:pass">
-            </div>
+        <div class="settings-panel" id="settingsForm">
             <div class="grid">
                 <div class="input-group">
+                    <label>API Key (Required)</label>
+                    <input type="text" id="api_key" placeholder="Enter API key">
+                </div>
+                <div class="input-group">
+                    <label>Proxy (Optional)</label>
+                    <input type="text" id="proxy" placeholder="host:port:user:pass">
+                </div>
+                <div class="input-group">
                     <label>First Name</label>
-                    <input type="text" id="first_name" value="John">
+                    <input type="text" id="first_name" placeholder="Enter first name">
                 </div>
                 <div class="input-group">
                     <label>Last Name</label>
-                    <input type="text" id="last_name" value="Doe">
+                    <input type="text" id="last_name" placeholder="Enter last name">
+                </div>
+                <div class="input-group">
+                    <label>Street Address</label>
+                    <input type="text" id="line1" placeholder="Enter street address">
+                </div>
+                <div class="input-group">
+                    <label>City</label>
+                    <input type="text" id="city" placeholder="Enter city">
+                </div>
+                <div class="input-group">
+                    <label>State</label>
+                    <input type="text" id="state" placeholder="Enter state">
+                </div>
+                <div class="input-group">
+                    <label>ZIP Code</label>
+                    <input type="text" id="postal_code" placeholder="Enter ZIP code">
+                </div>
+                <div class="input-group">
+                    <label>Country</label>
+                    <input type="text" id="country" placeholder="Enter country">
                 </div>
             </div>
-            <button class="btn btn-primary" onclick="saveSettings()">Save Settings</button>
+            <button class="btn" onclick="saveSettings()">Save Settings</button>
         </div>
+
+        <div class="loader" id="loader"></div>
+        <div class="results" id="results"></div>
     </div>
 
     <script>
-        // Global variables
-        let settings = {
-            api_key: 'HRKU-dbedf9a3-6946-4206-a197-be6cf5766a40',
-            proxy: '',
-            first_name: 'John',
-            last_name: 'Doe'
-        };
-        let stats = {
-            total: 0,
-            live: 0,
-            dead: 0,
-            error: 0
-        };
-        let checking = false;
-
-        // Theme handling
-        function toggleTheme() {
-            const html = document.documentElement;
-            const currentTheme = html.getAttribute('data-theme');
-            const newTheme = currentTheme === 'light' ? 'dark' : 'light';
-            html.setAttribute('data-theme', newTheme);
-            localStorage.setItem('theme', newTheme);
-        }
-
-        // Initialize theme
-        document.addEventListener('DOMContentLoaded', () => {
-            const savedTheme = localStorage.getItem('theme') || 'light';
-            document.documentElement.setAttribute('data-theme', savedTheme);
-            loadSettings();
-        });
-
-        // Settings handling
-        function openSettings() {
-            document.getElementById('settingsModal').style.display = 'block';
-        }
-
-        function closeSettings() {
-            document.getElementById('settingsModal').style.display = 'none';
-        }
+        let settings = {};
 
         function loadSettings() {
-            const savedSettings = localStorage.getItem('settings');
+            const savedSettings = sessionStorage.getItem('settings');
             if (savedSettings) {
                 settings = JSON.parse(savedSettings);
                 for (const [key, value] of Object.entries(settings)) {
@@ -449,132 +283,82 @@ HTML_TEMPLATE = '''
             }
         }
 
+        function toggleSettings() {
+            const form = document.getElementById('settingsForm');
+            form.style.display = form.style.display === 'none' ? 'block' : 'none';
+            loadSettings();
+        }
+
         function saveSettings() {
             settings = {
-                api_key: document.getElementById('api_key').value.trim() || 'HRKU-dbedf9a3-6946-4206-a197-be6cf5766a40',
+                api_key: document.getElementById('api_key').value.trim(),
                 proxy: document.getElementById('proxy').value.trim(),
                 first_name: document.getElementById('first_name').value.trim(),
-                last_name: document.getElementById('last_name').value.trim()
+                last_name: document.getElementById('last_name').value.trim(),
+                line1: document.getElementById('line1').value.trim(),
+                city: document.getElementById('city').value.trim(),
+                state: document.getElementById('state').value.trim(),
+                postal_code: document.getElementById('postal_code').value.trim(),
+                country: document.getElementById('country').value.trim()
             };
 
-            localStorage.setItem('settings', JSON.stringify(settings));
-            closeSettings();
-            showNotification('Settings saved successfully');
+            if (!settings.api_key) {
+                alert('API key is required!');
+                return;
+            }
+
+            sessionStorage.setItem('settings', JSON.stringify(settings));
+            alert('Settings saved successfully!');
+            toggleSettings();
         }
 
-        // Results handling
-        function clearResults() {
-            document.getElementById('results').innerHTML = '';
-            stats = { total: 0, live: 0, dead: 0, error: 0 };
-            updateStats();
+        function showLoader() {
+            document.getElementById('loader').style.display = 'block';
         }
 
-        function updateStats() {
-            document.getElementById('totalCount').textContent = stats.total;
-            document.getElementById('liveCount').textContent = stats.live;
-            document.getElementById('deadCount').textContent = stats.dead;
-            document.getElementById('errorCount').textContent = stats.error;
-        }
-
-        function updateProgress(current, total) {
-            const progress = document.getElementById('progress');
-            const progressText = document.getElementById('progressText');
-            const percentage = (current / total) * 100;
-            
-            progress.style.width = `${percentage}%`;
-            progressText.textContent = `${current}/${total} Checked`;
+        function hideLoader() {
+            document.getElementById('loader').style.display = 'none';
         }
 
         function addResult(cc, result) {
-            stats.total++;
-            if (result.status === 'success') stats.live++;
-            else if (result.status === 'error') stats.error++;
-            else stats.dead++;
-            
-            updateStats();
-
             const resultsDiv = document.getElementById('results');
             const statusClass = result.status === 'success' ? 'success' : 
                               result.status === 'error' ? 'error' : '';
             
             const resultHtml = `
                 <div class="result-card ${statusClass}">
-                    <div style="display: flex; justify-content: space-between;">
-                        <strong>CC:</strong> ${cc}
-                        <span class="status-badge ${result.status}">${result.status.toUpperCase()}</span>
-                    </div>
-                    <div>Message: ${result.message}</div>
-                    <div style="font-size: 0.8rem; color: var(--text-secondary);">
-                        Checked at: ${result.timestamp}
-                    </div>
+                    <strong>CC:</strong> ${cc}<br>
+                    <strong>Status:</strong> ${result.status}<br>
+                    <strong>Message:</strong> ${result.message}<br>
+                    <strong>Time:</strong> ${result.timestamp}
                 </div>
             `;
             resultsDiv.insertAdjacentHTML('afterbegin', resultHtml);
         }
 
-        function showNotification(message, type = 'success') {
-            const notification = document.createElement('div');
-            notification.className = `notification ${type}`;
-            notification.textContent = message;
-            document.body.appendChild(notification);
-            
-            setTimeout(() => {
-                notification.remove();
-            }, 3000);
-        }
-
-        function exportResults() {
-            const results = document.getElementById('results').innerHTML;
-            const statsData = JSON.stringify(stats, null, 2);
-            const exportData = `
-                <html>
-                <head>
-                    <title>CC Checker Results</title>
-                    <style>
-                        body { font-family: Arial, sans-serif; padding: 20px; }
-                        .stats { margin-bottom: 20px; }
-                        ${document.querySelector('style').innerHTML}
-                    </style>
-                </head>
-                <body>
-                    <h1>CC Checker Results</h1>
-                    <div class="stats">
-                        <pre>${statsData}</pre>
-                    </div>
-                    <div class="results">
-                        ${results}
-                    </div>
-                </body>
-                </html>
-            `;
-            
-            const blob = new Blob([exportData], { type: 'text/html' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `cc-checker-results-${new Date().toISOString().slice(0,10)}.html`;
-            a.click();
-            URL.revokeObjectURL(url);
-        }
-
-        async function startChecking() {
-            if (checking) {
-                showNotification('Already checking cards', 'warning');
+        async function submitForm() {
+            const savedSettings = sessionStorage.getItem('settings');
+            if (!savedSettings) {
+                alert('Please configure settings with API key first!');
+                toggleSettings();
                 return;
             }
 
-            const ccs = document.getElementById('ccs').value.trim().split('\n').filter(cc => cc.trim());
-            if (ccs.length === 0) {
-                showNotification('Please enter credit cards to check', 'error');
+            const settings = JSON.parse(savedSettings);
+            if (!settings.api_key) {
+                alert('API key is required! Please configure settings.');
+                toggleSettings();
                 return;
             }
 
-            checking = true;
-            document.getElementById('progressContainer').style.display = 'block';
-            clearResults();
+            const ccs = document.getElementById('ccs').value.trim().split('\\n').filter(cc => cc.trim());
+            if (ccs.length === 0 || ccs.length > 50) {
+                alert('Please enter between 1 and 50 credit cards.');
+                return;
+            }
 
-            let current = 0;
-            const total = ccs.length;
+            showLoader();
+            document.getElementById('results').innerHTML = '';
 
             for (const cc of ccs) {
                 try {
@@ -592,25 +376,11 @@ HTML_TEMPLATE = '''
                         timestamp: new Date().toLocaleTimeString()
                     });
                 }
-                
-                current++;
-                updateProgress(current, total);
-                
-                // Add a small delay between requests
-                await new Promise(resolve => setTimeout(resolve, 1000));
             }
-
-            checking = false;
-            showNotification('Checking completed');
+            hideLoader();
         }
 
-        // Close settings modal when clicking outside
-        window.onclick = function(event) {
-            const modal = document.getElementById('settingsModal');
-            if (event.target === modal) {
-                closeSettings();
-            }
-        }
+        document.addEventListener('DOMContentLoaded', loadSettings);
     </script>
 </body>
 </html>
@@ -677,15 +447,15 @@ async def heroku(cc, api_key, proxy=None, first_name=None, last_name=None, line1
             "origin": "https://js.stripe.com",
         }
 
-        name = f"{first_name} {last_name}" if first_name and last_name else "John Doe"
+        name = f"{first_name} {last_name}" if first_name and last_name else "Vikram Singh"
         data = {
             "type": "card",
             "billing_details[name]": name,
-            "billing_details[address][city]": city or "New York",
+            "billing_details[address][city]": city or "Anchorage",
             "billing_details[address][country]": country or "US",
-            "billing_details[address][line1]": line1 or "123 Test St",
-            "billing_details[address][postal_code]": postal_code or "10001",
-            "billing_details[address][state]": state or "NY",
+            "billing_details[address][line1]": line1 or "245 W 5th Ave",
+            "billing_details[address][postal_code]": postal_code or "99501",
+            "billing_details[address][state]": state or "AK",
             "card[number]": cc,
             "card[cvc]": cvv,
             "card[exp_month]": mon,
@@ -751,7 +521,11 @@ async def check_cc(request: Request):
         settings = data.get('settings', {})
         
         if not settings.get('api_key'):
-            settings['api_key'] = 'HRKU-dbedf9a3-6946-4206-a197-be6cf5766a40'
+            return {
+                "status": "error",
+                "message": "API key is required",
+                "timestamp": datetime.now().strftime('%H:%M:%S')
+            }
 
         result = await heroku(
             cc,
